@@ -49,10 +49,12 @@
       "image": "./assets/tv_icons/icon-1280x768.png"
     },
     "android": {
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.anonymous.ExpoRouterTV"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.ExpoRouterTV"
     }
   }
 }
