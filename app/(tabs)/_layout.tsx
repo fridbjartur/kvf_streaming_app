@@ -1,66 +1,18 @@
 import React from "react";
-import { Colors } from "@/constants/Colors";
-import { useColorScheme } from "@/hooks/useColorScheme";
 import { withLayoutContext } from "expo-router";
 import { createNativeBottomTabNavigator } from "@bottom-tabs/react-navigation";
-import { Platform } from "react-native";
 
-export const Tabs = withLayoutContext(
+export const Tab = withLayoutContext(
   createNativeBottomTabNavigator().Navigator
 );
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
   return (
-    <Tabs
-      tabBarActiveTintColor={colors.background}
-      tabBarInactiveTintColor={colors.tabIconDefault}
-      tabBarStyle={{ backgroundColor: colors.background }}
-      rippleColor={colors.tint}
-      translucent
-      labeled={true}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Heim",
-          tabBarIcon: () =>
-            Platform.OS === "android"
-              ? require("@/assets/bar_icons/home.png")
-              : null,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: "Beinleiðis",
-          tabBarIcon: () =>
-            Platform.OS === "android"
-              ? require("@/assets/bar_icons/code.png")
-              : null,
-        }}
-      />
-      <Tabs.Screen
-        name="tv_focus"
-        options={{
-          title: "Sendingar",
-          tabBarIcon: () =>
-            Platform.OS === "android"
-              ? require("@/assets/bar_icons/tv.png")
-              : null,
-        }}
-      />
-      {/* <Tabs.Screen
-        name="video"
-        options={{
-          title: "Video demo",
-          tabBarIcon: () =>
-            Platform.OS === "android"
-              ? require("@/assets/bar_icons/video.png")
-              : null,
-        }}
-      /> */}
-    </Tabs>
+    <Tab>
+      <Tab.Screen name="index" options={{ title: "Beinleiðis" }} />
+      <Tab.Screen name="(program)" options={{ title: "Sendingar" }} />
+      <Tab.Screen name="(vit)" options={{ title: "VIT" }} />
+      <Tab.Screen name="(miks)" options={{ title: "MIKS" }} />
+    </Tab>
   );
 }
