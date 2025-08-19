@@ -17,8 +17,8 @@ import { HomeScraperItemType } from "@/hooks/scrapers/useGetHomeScraper";
 export interface VideoSliderProps {
   title: string;
   items: HomeScraperItemType[];
-  onVideoPress?: (movie: HomeScraperItemType) => void;
-  onVideoFocus?: (movie: HomeScraperItemType) => void;
+  onVideoPress?: (e: HomeScraperItemType) => void;
+  onVideoFocus?: (e: HomeScraperItemType) => void;
   style?: any;
 }
 
@@ -32,13 +32,13 @@ export function VideoSlider({
   const scrollViewRef = useRef<ScrollView>(null);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
 
-  const handleMovieFocus = (index: number, movie: HomeScraperItemType) => {
+  const handleVideoFocus = (index: number, e: HomeScraperItemType) => {
     setFocusedIndex(index);
-    onVideoFocus?.(movie);
+    onVideoFocus?.(e);
   };
 
-  const handleMoviePress = (movie: HomeScraperItemType) => {
-    onVideoPress?.(movie);
+  const handleVideoPress = (e: HomeScraperItemType) => {
+    onVideoPress?.(e);
   };
 
   return (
@@ -54,14 +54,14 @@ export function VideoSlider({
         contentContainerStyle={styles.scrollContent}
         style={styles.scrollView}
       >
-        {items.map((movie, index) => (
-          <MovieItem
-            key={movie.id}
-            video={movie}
+        {items.map((item, index) => (
+          <VideoItem
+            key={item.id}
+            video={item}
             isFocused={focusedIndex === index}
-            onPress={() => handleMoviePress(movie)}
-            onFocus={() => handleMovieFocus(index, movie)}
-            style={styles.movieItem}
+            onPress={() => handleVideoPress(item)}
+            onFocus={() => handleVideoFocus(index, item)}
+            style={styles.videoItem}
           />
         ))}
       </ScrollView>
@@ -77,7 +77,7 @@ interface VideoItemProps {
   style?: any;
 }
 
-function MovieItem({
+export function VideoItem({
   video,
   isFocused,
   onPress,
@@ -93,7 +93,7 @@ function MovieItem({
       onPress={onPress}
       onFocus={onFocus}
       style={[
-        styles.movieItemContainer,
+        styles.videoItemContainer,
         {
           backgroundColor: isFocused ? tintColor : backgroundColor,
         },
@@ -116,11 +116,11 @@ function MovieItem({
         ) : null}
       </View>
 
-      <View style={styles.movieInfo}>
+      <View style={styles.videoInfo}>
         <ThemedText
           type="defaultSemiBold"
           style={[
-            styles.movieTitle,
+            styles.videoTitle,
             { color: isFocused ? backgroundColor : textColor },
           ]}
           numberOfLines={2}
@@ -143,10 +143,10 @@ const styles = StyleSheet.create({
     flexGrow: 0,
   },
   scrollContent: {},
-  movieItem: {
+  videoItem: {
     marginRight: scale(10),
   },
-  movieItemContainer: {
+  videoItemContainer: {
     borderRadius: scale(8),
     width: scale(140),
     overflow: "hidden",
@@ -176,8 +176,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  movieInfo: {
+  videoInfo: {
     padding: scale(12),
   },
-  movieTitle: {},
+  videoTitle: {},
 });

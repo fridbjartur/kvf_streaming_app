@@ -1,5 +1,5 @@
 import { fetchWithProxy } from "@/helpers/fetchWithProxy";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 
 // @ts-ignore - react-native-cheerio doesn't have proper TypeScript declarations
 import * as cheerio from "react-native-cheerio";
@@ -22,104 +22,185 @@ interface UseGetHomeScraperReturnProps {
   loading: boolean;
   error: string | null;
   refetch: () => void;
+  isStale: boolean;
 }
 
-export function useGetHomeScraper(
-  type: "sjon" | "vit" | "miks"
-): UseGetHomeScraperReturnProps {
-  let url = "";
-  if (type === "sjon") {
-    url = "https://kvf.fo/sjon";
-  } else if (type === "vit") {
-    url = "https://kvf.fo/sjon/vit";
-  } else if (type === "miks") {
-    url = "https://kvf.fo/sjon/miks";
-  }
-  const [data, setData] = useState<HomeScraperDataType[] | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+type HomeScraperType = "sjon" | "vit" | "miks";
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+// URL mapping for better maintainability
+const URL_MAP = {
+  sjon: "https://kvf.fo/sjon",
+  vit: "https://kvf.fo/sjon/vit",
+  miks: "https://kvf.fo/sjon/miks",
+} as const;
 
-    try {
-      const html = await fetchWithProxy(url);
+// Memoized parsing function to avoid recreating on every render
+const parseHtmlContent = (
+  html: string,
+  type: HomeScraperType
+): HomeScraperDataType[] => {
+  const $ = cheerio.load(html);
+  const scrapedData: HomeScraperDataType[] = [];
+  const seenTitles = new Set<string>();
 
-      // Parse HTML with react-native-cheerio
-      const $ = cheerio.load(html);
+  $(`.${type === "miks" ? "view-mix-banner-fake" : "view-grouping"}`).each(
+    (index: number, element: any) => {
+      const $element = $(element);
+      const title =
+        $element.find("h3").first().text().trim() ||
+        $element.find(".view-header").first().text().trim();
 
-      // Find all view-grouping sections
-      const scrapedData: HomeScraperDataType[] = [];
-      const seenTitles = new Set<string>(); // Track seen titles to avoid duplicates
+      if (title && !seenTitles.has(title)) {
+        seenTitles.add(title);
 
-      // Look for view-grouping sections
-      $(".view-grouping").each((index: number, element: any) => {
-        const $element = $(element);
+        const items: HomeScraperItemType[] = [];
 
-        // Find the h3 title within this view-grouping
-        const title = $element.find("h3").first().text().trim();
+        $element
+          .find(".swiper-row")
+          .each((slideIndex: number, slideElement: any) => {
+            const $slide = $(slideElement);
 
-        if (title && !seenTitles.has(title)) {
-          seenTitles.add(title); // Mark this title as seen
+            const itemTitle =
+              $slide
+                .find(
+                  `.${
+                    type === "miks"
+                      ? "views-field-title"
+                      : "views-field-title-1"
+                  } a`
+                )
+                .first()
+                .text()
+                .trim() || "";
+            const link =
+              $slide.find(".field-content a").first().attr("href") || "";
+            const image = $slide.find("img").first().attr("src") || "";
 
-          const items: HomeScraperItemType[] = [];
-
-          // Find all swiper-row elements within this view-grouping (these are the actual items)
-          $element
-            .find(".swiper-row")
-            .each((slideIndex: number, slideElement: any) => {
-              const $slide = $(slideElement);
-
-              const title =
-                $slide.find(".views-field-title-1 a").first().text().trim() ||
-                "";
-
-              // Get the first link (href) from the title field
-              const link =
-                $slide.find(".field-content a").first().attr("href") || "";
-
-              // Get the first image (src) from the image field
-              const image = $slide.find("img").first().attr("src") || "";
-
+            // Only add items with valid titles
+            if (itemTitle) {
               items.push({
-                id: `${Date.now()}-${Math.random()}`,
-                title,
+                id: `item-${index}-${slideIndex}-${Date.now()}`,
+                title: itemTitle,
                 link: link.startsWith("http") ? link : `https://kvf.fo${link}`,
                 image: image.startsWith("http")
                   ? image
                   : `https://kvf.fo${image}`,
               });
-            });
+            }
+          });
 
-          if (items.length) {
-            scrapedData.push({
-              id: `${Date.now()}-${Math.random()}`,
-              title,
-              items,
-            });
-          }
+        if (items.length > 0) {
+          scrapedData.push({
+            id: `section-${index}-${Date.now()}`,
+            title,
+            items,
+          });
         }
-      });
-      setData(scrapedData);
-    } catch (err) {
-      console.error("Scraping error:", err);
-      setError(
-        err instanceof Error ? err.message : "An error occurred while scraping"
-      );
-      setData(null);
-    } finally {
-      setLoading(false);
+      }
     }
-  }, [url]);
+  );
 
+  return scrapedData;
+};
+
+export function useGetHomeScraper(
+  type: HomeScraperType
+): UseGetHomeScraperReturnProps {
+  // Memoize URL to prevent unnecessary re-renders
+  const url = useMemo(() => URL_MAP[type], [type]);
+
+  const [data, setData] = useState<HomeScraperDataType[] | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+
+  // Use refs to prevent stale closures and track abort controller
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const isMountedRef = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  const fetchData = useCallback(
+    async (forceRefresh = false) => {
+      // Prevent multiple simultaneous requests
+      if (loading && !forceRefresh) {
+        return;
+      }
+
+      // Abort previous request if still pending
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Create new abort controller
+      abortControllerRef.current = new AbortController();
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const html = await fetchWithProxy(url);
+
+        // Check if component is still mounted
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        const scrapedData = parseHtmlContent(html, type);
+
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        setData(scrapedData);
+        setLastFetchTime(Date.now());
+      } catch (err) {
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        // Don't set error if request was aborted
+        if (err instanceof Error && err.name === "AbortError") {
+          return;
+        }
+
+        console.error("Scraping error:", err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "An error occurred while scraping"
+        );
+        setData(null);
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
+      }
+    },
+    [url, loading]
+  );
+
+  // Auto-refetch on mount and when URL changes
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   const refetch = useCallback(() => {
-    fetchData();
+    fetchData(true);
   }, [fetchData]);
 
-  return { data, loading, error, refetch };
+  // Calculate if data is stale (older than 5 minutes)
+  const isStale = useMemo(() => {
+    return Date.now() - lastFetchTime > 5 * 60 * 1000; // 5 minutes
+  }, [lastFetchTime]);
+
+  return { data, loading, error, refetch, isStale };
 }

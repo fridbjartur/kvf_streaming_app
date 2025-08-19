@@ -6,18 +6,11 @@ import {
   useGetHomeScraper,
 } from "@/hooks/scrapers/useGetHomeScraper";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { router } from "expo-router";
 import { scale } from "react-native-size-matters";
 
-export default function MiksScreen() {
-  const { data, loading, error, refetch } = useGetHomeScraper("miks");
-
-  const handleMoviePress = (movie: HomeScraperItemType) => {
-    return;
-  };
-
-  const handleMovieFocus = (movie: HomeScraperItemType) => {
-    return;
-  };
+export default function VitScreen() {
+  const { data, loading, error, refetch } = useGetHomeScraper("vit");
 
   return (
     <ParallaxScrollView
@@ -28,7 +21,17 @@ export default function MiksScreen() {
         <ThemedText>Loading...</ThemedText>
       ) : (
         data?.map((item) => (
-          <VideoSlider key={item.id} title={item.title} items={item.items} />
+          <VideoSlider
+            key={item.id}
+            title={item.title}
+            items={item.items}
+            onVideoPress={(e) =>
+              router.push({
+                pathname: "/[url]",
+                params: { url: e.link },
+              })
+            }
+          />
         ))
       )}
     </ParallaxScrollView>

@@ -3,6 +3,7 @@ import { StyleSheet } from "react-native";
 import { scale } from "react-native-size-matters";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { ThemedText } from "@/components/ThemedText";
+import VideoPlayer from "@/components/VideoPlayer";
 
 export default function ExploreScreen() {
   return (
@@ -17,6 +18,7 @@ export default function ExploreScreen() {
       }
     >
       <ThemedText>Hello</ThemedText>
+      <VideoPlayer source="https://play.kringvarp.fo/redirect/kvf/_definst_/1080_high.stream?type=m3u8" />
     </ParallaxScrollView>
   );
 }
